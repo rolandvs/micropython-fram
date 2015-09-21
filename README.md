@@ -69,8 +69,8 @@ pickling Python objects for example to achieve persistence when issuing ``pyb.st
  USB connector at the top.
  2. ``verbose`` (default False). If True, the constructor issues information on the FRAM devices it has detected.
  
- A ``FRAMException`` will be raised if a device is not detected or if device address lines are not
- wired as  described in Connections above.
+A ``FRAMException`` will be raised if a device is not detected or if device address lines are not
+wired as  described in Connections above.
 
 ### Methods providing the block protocol
 
@@ -83,7 +83,7 @@ For the protocol definition see
 
 ### Methods providing byte level access
 
-The following methods are available for general use.
+The following methods are available for general use.  
 ``available()`` Returns True if the device is detected and is supported.  
 ``readwrite()`` Provides byte level access to the memory array. Arguments:
  1. ``addr`` Starting byte address
