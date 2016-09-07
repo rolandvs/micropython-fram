@@ -4,13 +4,13 @@ A driver to enable the Pyboard to access the Ferroelectric RAM (FRAM) board from
 nonvolatile memory with extremely long endurance and fast access, avoiding the
 limitations of Flash memory. Its endurance is specified as 10^13 writes,
 contrasted with 10,000 which is the quoted endurance of the Pyboard's onboard
-Flash memory. In data logging applications this can be exceeded relatively
+Flash memory. In data logging applications the latter can be exceeded relatively
 rapidly. Flash writes can be slow because of the need for a sector erase: this
 is not a fast process. FRAM is byte addressable and is not subject to this
 limitation. The downside is limited capacity. Compared to a Micro SD card fitted
 to the Pyboard it offers lower power consumption and longer endurance.
 
-From one to eight boards may be used to construct a nonvoltile memory module
+From one to eight boards may be used to construct a nonvolatile memory module
 with size ranging from 32KB to 256KB. The driver allows the memory either to be
 mounted in the Pyboard filesystem as a disk device or to be addressed as an
 array of bytes.
@@ -73,7 +73,8 @@ pyb.mount(None, '/fram')
 Note that, at the outset, you need to decide whether to use the array as a
 mounted filesystem or as a byte array. As a filesystem the limited size is an
 issue, but a potential use case is for pickling Python objects for example to
-achieve persistence when issuing ``pyb.standby()``.
+achieve persistence when issuing ``pyb.standby()``. Also for holding a small
+frequently updated persistent btree database.
 
 ### Constructor
 
@@ -93,15 +94,15 @@ For the protocol definition see
 ``readblocks()``  
 ``writeblocks()``  
 ``count()``  
-``ioctl``
+``ioctl()``
 
 ### Methods providing byte level access
 
-The following methods are available for general use.  
-``available()`` Returns True if the device is detected and is supported.  
-``readwrite()`` Provides byte level access to the memory array. Arguments:
- 1. ``addr`` Starting byte address
- 2. ``buf`` A buffer containing the data to write or to hold read data
+The following methods are available for general use.
+
+``readwrite()`` Provides byte level access to the memory array. Arguments:  
+ 1. ``addr`` Starting byte address  
+ 2. ``buf`` A buffer containing the data to write or to hold read data  
  3. ``read`` If True, perform a read otherwise write. The size of the buffer
  determines the quantity of data read or written. A ``FRAMException`` will be
  thrown if the read or write extends beyond the end of the array.
@@ -110,6 +111,8 @@ The following methods are available for general use.
 pyb module doesn't provide a means of forcing a drive format. Issuing a
 ``low_level_format()`` followed by ``pyb.mount()`` with ``mkfs-True`` will
 format the drive deleting all files.
+
+``available()`` Returns True if the device is detected and is supported.
 
 Other than for debugging there is no need to call ``available()``: the
 constructor will throw a ``FRAMException`` if it fails to communicate with and
@@ -132,3 +135,10 @@ mounted on /fram):
 ```python
 cp('/flash/main.py','/fram/')
 ```
+
+# ESP8266
+
+The driver now supports this module. The file ``framtest_esp8266.py`` demonstrates
+its use. Note that currently the ESP8266 does not support concurrent mounting
+of multiple filesystems. Consequently the onboard flash must be unmounted (with
+``uos.umount()``) before the FRAM can be mounted.
