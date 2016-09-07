@@ -1,8 +1,9 @@
 # fram.py Driver for Adafruit 32K Ferroelectric RAM module (Fujitsu MB85RC256V)
 # Peter Hinch
+# 7th Sep 2016 Adapted to be compatible with ESP8266
 # 21st Sep 2015 Tested with two FRAM units
 
-import pyb
+from sys import platform
 
 FRAM_MIN = const(0x50)          # FRAM I2C address 0x50 to 0x57
 FRAM_SLAVE_ID = const(0xf8)     # FRAM device ID location
@@ -26,10 +27,10 @@ def cp(source, dest):
 
 # A logical ferroelectric RAM made up of from 1 to 8 chips
 class FRAM():
-    def __init__(self, side, verbose = False):
-        bus = {'R':2, 'r':2, 'L':1, 'l':1}[side]
+    def __init__(self, i2c, verbose = False):
         self.verbose = verbose
-        self._i2c = pyb.I2C(bus, pyb.I2C.MASTER, baudrate=1000000)
+        self.pyboard = platform == 'pyboard'
+        self._i2c = i2c
         devices = self._i2c.scan()
         if self.verbose:
             for d in devices:
@@ -53,7 +54,10 @@ class FRAM():
         self.i2c_addr = None                    # i2c address of current chip
 
     def available(self, device_addr):
-        res = self._i2c.mem_read(3, FRAM_SLAVE_ID >>1, device_addr <<1)
+        if self.pyboard:
+            res = self._i2c.mem_read(3, FRAM_SLAVE_ID >>1, device_addr <<1)
+        else:
+            res = self._i2c.readfrom_mem(FRAM_SLAVE_ID >>1, device_addr <<1, 3)
         manufacturerID = (res[0] << 4) + (res[1]  >> 4)
         productID = ((res[1] & 0x0F) << 8) + res[2]
         return manufacturerID == MANF_ID and productID == PRODUCT_ID
@@ -79,11 +83,18 @@ class FRAM():
             bytes_handled = self._getaddr(addr, nbytes)
             if bytes_handled == 0:
                 raise FRAMException("FRAM Address is out of range")
-            if read:
-                self._i2c.send(self.addrbuf, self.i2c_addr)
-                buf[start : start + bytes_handled] = self._i2c.recv(bytes_handled, self.i2c_addr)
+            if self.pyboard:
+                if read:
+                    self._i2c.send(self.addrbuf, self.i2c_addr)
+                    buf[start : start + bytes_handled] = self._i2c.recv(bytes_handled, self.i2c_addr)
+                else:
+                    self._i2c.send(self.addrbuf +buf[start: start + bytes_handled], self.i2c_addr)
             else:
-                self._i2c.send(self.addrbuf +buf[start: start + bytes_handled], self.i2c_addr)
+                if read:
+                    self._i2c.writeto(self.i2c_addr, self.addrbuf)
+                    buf[start : start + bytes_handled] = self._i2c.readfrom(self.i2c_addr, bytes_handled)
+                else:
+                    self._i2c.writeto(self.i2c_addr, self.addrbuf +buf[start: start + bytes_handled])
             nbytes -= bytes_handled
             start += bytes_handled
             addr += bytes_handled
@@ -98,6 +109,14 @@ class FRAM():
 
     def count(self):
         return self.ndevices * 64 # 64*512 = 32K
+
+    def ioctl(self, op, arg):
+        #print("ioctl(%d, %r)" % (op, arg))
+        if op == 4:  # BP_IOCTL_SEC_COUNT
+            return self.ndevices * 64
+        if op == 5:  # BP_IOCTL_SEC_SIZE
+            return 512
+
 
 # ******* UTILITY TO ENABLE FORCED FORMAT *******
 # See README. This wipes the filesystem! Contingency until MicroPython provides a forced format
